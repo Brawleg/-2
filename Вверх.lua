@@ -1,166 +1,167 @@
--- // Infinite Air Jump + Draggable Menu + Кнопка скрытия для Delta
+-- // Nearby Players Freeze (Anti-Walk) + Delta Menu
+-- Замораживает игроков рядом с тобой (не могут ходить)
 
 local player = game.Players.LocalPlayer
 local ENABLED = false
 local connection = nil
+local FREEZE_RADIUS = 25  -- Радиус действия (в студах). Можно менять
 
--- Функции прыжка
-local function enableAirJump()
-    if connection then return end
-    connection = game:GetService("UserInputService").JumpRequest:Connect(function()
-        if not ENABLED then return end
-        local character = player.Character
-        if not character then return end
-        local root = character:FindFirstChild("HumanoidRootPart")
-        if root then
-            root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z)
-        end
-    end)
-end
+local frozenPlayers = {}  -- Для хранения кто заморожен
 
-local function disableAirJump()
-    if connection then
-        connection:Disconnect()
-        connection = nil
+-- Анти-смерть для себя
+local function antiDeath()
+    local char = player.Character
+    if not char then return end
+    local hum = char:FindFirstChild("Humanoid")
+    if hum then
+        hum.MaxHealth = math.huge
+        hum.Health = math.huge
+        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
     end
 end
 
--- === МЕНЮ ===
+-- Основная функция заморозки
+local function updateFreeze()
+    if not ENABLED then return end
+    
+    local myChar = player.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+    
+    local myRoot = myChar.HumanoidRootPart
+    local myPos = myRoot.Position
+    
+    -- Проходим по всем игрокам
+    for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherChar = otherPlayer.Character
+            local otherRoot = otherChar:FindFirstChild("HumanoidRootPart")
+            local otherHum = otherChar:FindFirstChild("Humanoid")
+            
+            if otherRoot and otherHum then
+                local distance = (otherRoot.Position - myPos).Magnitude
+                
+                if distance <= FREEZE_RADIUS then
+                    -- Замораживаем
+                    otherHum.WalkSpeed = 0
+                    otherHum.JumpPower = 0
+                    otherHum.PlatformStand = true
+                    otherHum.AutoRotate = false
+                    
+                    -- Дополнительно сбрасываем скорость
+                    otherRoot.Velocity = Vector3.new(0, otherRoot.Velocity.Y, 0)
+                    otherRoot.AssemblyLinearVelocity = Vector3.new(0, otherRoot.Velocity.Y, 0)
+                    
+                    frozenPlayers[otherPlayer] = true
+                elseif frozenPlayers[otherPlayer] then
+                    -- Размораживаем если вышел из радиуса
+                    otherHum.WalkSpeed = 16
+                    otherHum.JumpPower = 50
+                    otherHum.PlatformStand = false
+                    otherHum.AutoRotate = true
+                    frozenPlayers[otherPlayer] = nil
+                end
+            end
+        end
+    end
+end
+
+-- === МЕНЮ ДЛЯ DELTA ===
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AirJumpMenu"
+ScreenGui.Name = "NearbyFreezeMenu"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 190)
-MainFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 280, 0, 180)
+Frame.Position = UDim2.new(0.5, -140, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 14)
-UICorner.Parent = MainFrame
-
--- Заголовок (перетаскивание)
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Frame
 
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -90, 1, 0)
-Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Size = UDim2.new(1, 0, 0, 45)
 Title.BackgroundTransparency = 1
-Title.Text = "Прыжки в Воздухе"
-Title.TextColor3 = Color3.fromRGB(0, 255, 200)
+Title.Text = "Nearby Freeze"
+Title.TextColor3 = Color3.fromRGB(255, 100, 100)
 Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
-Title.Parent = TitleBar
+Title.Parent = Frame
 
--- Кнопка скрытия меню
-local HideButton = Instance.new("TextButton")
-HideButton.Size = UDim2.new(0, 35, 0, 35)
-HideButton.Position = UDim2.new(1, -40, 0, 3)
-HideButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-HideButton.Text = "👁"
-HideButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-HideButton.TextScaled = true
-HideButton.Font = Enum.Font.GothamBold
-HideButton.Parent = TitleBar
-
-local HideCorner = Instance.new("UICorner")
-HideCorner.CornerRadius = UDim.new(0, 8)
-HideCorner.Parent = HideButton
-
--- Статус
 local Status = Instance.new("TextLabel")
-Status.Size = UDim2.new(1, 0, 0, 25)
+Status.Size = UDim2.new(1, 0, 0, 30)
 Status.Position = UDim2.new(0, 0, 0.3, 0)
 Status.BackgroundTransparency = 1
 Status.Text = "Выключено"
-Status.TextColor3 = Color3.fromRGB(255, 80, 80)
+Status.TextColor3 = Color3.fromRGB(200, 200, 200)
 Status.TextScaled = true
 Status.Font = Enum.Font.Gotham
-Status.Parent = MainFrame
+Status.Parent = Frame
 
--- Кнопка Вкл/Выкл
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0.85, 0, 0, 60)
-ToggleButton.Position = UDim2.new(0.075, 0, 0.52, 0)
+ToggleButton.Size = UDim2.new(0.85, 0, 0, 55)
+ToggleButton.Position = UDim2.new(0.075, 0, 0.55, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-ToggleButton.Text = "ВКЛЮЧИТЬ"
+ToggleButton.Text = "ВКЛЮЧИТЬ ЗАМОРОЗКУ"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextScaled = true
 ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.Parent = MainFrame
+ToggleButton.Parent = Frame
 
 local ButtonCorner = Instance.new("UICorner")
-ButtonCorner.CornerRadius = UDim.new(0, 12)
+ButtonCorner.CornerRadius = UDim.new(0, 10)
 ButtonCorner.Parent = ToggleButton
 
--- === Перетаскивание меню ===
-local dragging = false
-local dragStart, startPos
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
-TitleBar.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- === Логика кнопки скрытия ===
-local menuVisible = true
-HideButton.MouseButton1Click:Connect(function()
-    menuVisible = not menuVisible
-    MainFrame.Visible = menuVisible
-    HideButton.Text = menuVisible and "👁" or "👁‍🗨"
-end)
-
--- Логика включения/выключения прыжков
+-- Переключение
 ToggleButton.MouseButton1Click:Connect(function()
     ENABLED = not ENABLED
+    
     if ENABLED then
-        ToggleButton.Text = "ВЫКЛЮЧИТЬ"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 255, 100)
-        Status.Text = "Включено"
-        Status.TextColor3 = Color3.fromRGB(80, 255, 80)
-        enableAirJump()
+        ToggleButton.Text = "ВЫКЛЮЧИТЬ ЗАМОРОЗКУ"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
+        Status.Text = "Включено (Радиус: " .. FREEZE_RADIUS .. ")"
+        
+        if not connection then
+            connection = game:GetService("RunService").Heartbeat:Connect(updateFreeze)
+        end
     else
-        ToggleButton.Text = "ВКЛЮЧИТЬ"
+        ToggleButton.Text = "ВКЛЮЧИТЬ ЗАМОРОЗКУ"
         ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         Status.Text = "Выключено"
-        Status.TextColor3 = Color3.fromRGB(255, 80, 80)
-        disableAirJump()
+        
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        
+        -- Размораживаем всех при выключении
+        for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
+            if otherPlayer ~= player and otherPlayer.Character then
+                local hum = otherPlayer.Character:FindFirstChild("Humanoid")
+                if hum then
+                    hum.WalkSpeed = 16
+                    hum.JumpPower = 50
+                    hum.PlatformStand = false
+                    hum.AutoRotate = true
+                end
+            end
+        end
+        frozenPlayers = {}
     end
 end)
 
 -- Респавн
 player.CharacterAdded:Connect(function()
     wait(0.5)
-    if ENABLED then
-        disableAirJump()
-        enableAirJump()
-    end
+    antiDeath()
 end)
 
-print("✅ Air Jump с кнопкой скрытия загружен!")
-print("   Зажми заголовок — двигать | Кнопка 👁 — скрыть/показать меню")
+-- Инициализация
+antiDeath()
+print("✅ Nearby Freeze скрипт загружен!")
+print("   Включай через меню. Замораживает игроков в радиусе " .. FREEZE_RADIUS .. " студов.")
 
--- ScreenGui:Destroy() -- если нужно полностью удалить
+-- ScreenGui:Destroy() -- для удаления меню
