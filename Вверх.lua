@@ -1,4 +1,4 @@
--- // Infinite Air Jump + Draggable & Hideable Menu for Delta
+-- // Infinite Air Jump + Draggable Menu + Кнопка скрытия для Delta
 
 local player = game.Players.LocalPlayer
 local ENABLED = false
@@ -11,10 +11,9 @@ local function enableAirJump()
         if not ENABLED then return end
         local character = player.Character
         if not character then return end
-        local humanoid = character:FindFirstChild("Humanoid")
         local root = character:FindFirstChild("HumanoidRootPart")
-        if humanoid and root then
-            root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z) -- Измени высоту здесь
+        if root then
+            root.Velocity = Vector3.new(root.Velocity.X, 50, root.Velocity.Z)
         end
     end)
 end
@@ -26,7 +25,7 @@ local function disableAirJump()
     end
 end
 
--- === Draggable & Hideable МЕНЮ ===
+-- === МЕНЮ ===
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AirJumpMenu"
 ScreenGui.ResetOnSpawn = false
@@ -37,26 +36,21 @@ MainFrame.Size = UDim2.new(0, 280, 0, 190)
 MainFrame.Position = UDim2.new(0.5, -140, 0.25, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 MainFrame.BorderSizePixel = 0
-MainFrame.Visible = true
 MainFrame.Parent = ScreenGui
 
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 14)
 UICorner.Parent = MainFrame
 
--- Заголовок (для перетаскивания)
+-- Заголовок (перетаскивание)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 14)
-TitleCorner.Parent = TitleBar
-
 local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, -80, 1, 0)
+Title.Size = UDim2.new(1, -90, 1, 0)
 Title.Position = UDim2.new(0, 10, 0, 0)
 Title.BackgroundTransparency = 1
 Title.Text = "Прыжки в Воздухе"
@@ -65,12 +59,12 @@ Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
 Title.Parent = TitleBar
 
--- Кнопка скрытия
+-- Кнопка скрытия меню
 local HideButton = Instance.new("TextButton")
-HideButton.Size = UDim2.new(0, 30, 0, 30)
-HideButton.Position = UDim2.new(1, -35, 0, 5)
-HideButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-HideButton.Text = "−"
+HideButton.Size = UDim2.new(0, 35, 0, 35)
+HideButton.Position = UDim2.new(1, -40, 0, 3)
+HideButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+HideButton.Text = "👁"
 HideButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 HideButton.TextScaled = true
 HideButton.Font = Enum.Font.GothamBold
@@ -91,7 +85,7 @@ Status.TextScaled = true
 Status.Font = Enum.Font.Gotham
 Status.Parent = MainFrame
 
--- Кнопка вкл/выкл
+-- Кнопка Вкл/Выкл
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Size = UDim2.new(0.85, 0, 0, 60)
 ToggleButton.Position = UDim2.new(0.075, 0, 0.52, 0)
@@ -106,49 +100,40 @@ local ButtonCorner = Instance.new("UICorner")
 ButtonCorner.CornerRadius = UDim.new(0, 12)
 ButtonCorner.Parent = ToggleButton
 
--- === Логика перетаскивания ===
+-- === Перетаскивание меню ===
 local dragging = false
-local dragInput
-local dragStart
-local startPos
-
-local function updateInput(input)
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
+local dragStart, startPos
 
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
     end
 end)
 
 game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if dragging and input == dragInput then
-        updateInput(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
--- Скрытие меню
-HideButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
+TitleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
 end)
 
--- Логика включения/выключения
+-- === Логика кнопки скрытия ===
+local menuVisible = true
+HideButton.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    MainFrame.Visible = menuVisible
+    HideButton.Text = menuVisible and "👁" or "👁‍🗨"
+end)
+
+-- Логика включения/выключения прыжков
 ToggleButton.MouseButton1Click:Connect(function()
     ENABLED = not ENABLED
     if ENABLED then
@@ -175,7 +160,7 @@ player.CharacterAdded:Connect(function()
     end
 end)
 
-print("✅ Air Jump с перетаскиваемым меню загружен!")
-print("   Зажми заголовок чтобы двигать • Кнопка «−» чтобы скрыть/показать")
+print("✅ Air Jump с кнопкой скрытия загружен!")
+print("   Зажми заголовок — двигать | Кнопка 👁 — скрыть/показать меню")
 
--- ScreenGui:Destroy() -- для удаления
+-- ScreenGui:Destroy() -- если нужно полностью удалить
