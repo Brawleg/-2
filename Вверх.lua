@@ -1,4 +1,4 @@
--- // Touch Freeze (Коснулся — заморозил) + Draggable Menu for Delta
+- // Touch Freeze (Коснулся — заморозил) + Draggable Menu for Delta
 
 local player = game.Players.LocalPlayer
 local ENABLED = false
