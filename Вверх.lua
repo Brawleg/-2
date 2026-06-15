@@ -1,12 +1,11 @@
--- // Invisible Body + Head Stays + Toggle Menu for Delta
--- Все части тела улетают вверх, кроме головы
+-- // Only Right Arm Flies Up + Head & Body Stay | Delta Menu
 
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local root = character:WaitForChild("HumanoidRootPart")
 
-local HEIGHT = 400          -- Высота подъёма
+local HEIGHT = 350
 local ENABLED = false
 local connection = nil
 
@@ -19,7 +18,7 @@ local function antiDeath()
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 end
 
--- Основная функция скрытия
+-- Основная функция (только рука улетает)
 local function updateBody()
     if not ENABLED or not character or not root then return end
     
@@ -28,43 +27,34 @@ local function updateBody()
     
     for _, part in ipairs(character:GetChildren()) do
         if part:IsA("BasePart") then
-            if part.Name == "Head" or part.Name == "HumanoidRootPart" then
-                -- Голова и хитбокс остаются на месте
-                part.Transparency = 0
-                part.CanCollide = true
-            else
-                -- Всё остальное улетает вверх
-                local targetCFrame = root.CFrame * CFrame.new(0, HEIGHT, 0)
-                part.CFrame = targetCFrame
+            local name = part.Name
+            
+            if name == "Right Arm" or name == "RightUpperArm" or name == "RightLowerArm" or name == "RightHand" then
+                -- Только правая рука улетает
+                part.CFrame = root.CFrame * CFrame.new(0, HEIGHT, 0)
                 part.Transparency = 1
                 part.CanCollide = false
+            else
+                -- Всё остальное (тело, голова, левая рука, ноги) остаётся нормальным
+                part.Transparency = 0
+                part.CanCollide = true
             end
         end
     end
     
-    -- Accessories (волосы, шапки и т.д.)
-    for _, acc in ipairs(character:GetChildren()) do
-        if acc:IsA("Accessory") then
-            local handle = acc:FindFirstChild("Handle")
-            if handle then
-                handle.CFrame = root.CFrame * CFrame.new(0, HEIGHT + 5, 0)
-                handle.Transparency = 1
-                handle.CanCollide = false
-            end
-        end
-    end
+    -- Accessories (шапки, волосы и т.д. — не трогаем)
 end
 
--- Создаём красивое меню для Delta
+-- === МЕНЮ ДЛЯ DELTA ===
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "BodyFlyMenu"
+ScreenGui.Name = "ArmFlyMenu"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 250, 0, 150)
-Frame.Position = UDim2.new(0.5, -125, 0.3, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Size = UDim2.new(0, 260, 0, 160)
+Frame.Position = UDim2.new(0.5, -130, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 
@@ -75,17 +65,17 @@ UICorner.Parent = Frame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
-Title.Text = "Body Fly Menu"
+Title.Text = "Only Arm Fly"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.TextScaled = true
 Title.Font = Enum.Font.GothamBold
 Title.Parent = Frame
 
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0.9, 0, 0, 50)
-ToggleButton.Position = UDim2.new(0.05, 0, 0.45, 0)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-ToggleButton.Text = "ВКЛЮЧИТЬ"
+ToggleButton.Size = UDim2.new(0.9, 0, 0, 55)
+ToggleButton.Position = UDim2.new(0.05, 0, 0.4, 0)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+ToggleButton.Text = "ВКЛЮЧИТЬ РУКУ"
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleButton.TextScaled = true
 ToggleButton.Font = Enum.Font.GothamBold
@@ -95,27 +85,27 @@ local ButtonCorner = Instance.new("UICorner")
 ButtonCorner.CornerRadius = UDim.new(0, 10)
 ButtonCorner.Parent = ToggleButton
 
--- Логика переключения
+-- Переключение
 ToggleButton.MouseButton1Click:Connect(function()
     ENABLED = not ENABLED
     
     if ENABLED then
-        ToggleButton.Text = "ВЫКЛЮЧИТЬ"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 255, 50)
+        ToggleButton.Text = "ВЫКЛЮЧИТЬ РУКУ"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(60, 255, 60)
         
         if not connection then
             connection = game:GetService("RunService").RenderStepped:Connect(updateBody)
         end
     else
-        ToggleButton.Text = "ВКЛЮЧИТЬ"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+        ToggleButton.Text = "ВКЛЮЧИТЬ РУКУ"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
         
         if connection then
             connection:Disconnect()
             connection = nil
         end
         
-        -- Возвращаем всё на место при выключении
+        -- Возвращаем руку на место
         if character then
             for _, part in ipairs(character:GetChildren()) do
                 if part:IsA("BasePart") then
@@ -127,7 +117,7 @@ ToggleButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Авто-обновление при респавне
+-- Респавн
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
     humanoid = newChar:WaitForChild("Humanoid")
@@ -136,9 +126,9 @@ player.CharacterAdded:Connect(function(newChar)
     antiDeath()
 end)
 
--- Инициализация
+-- Старт
 antiDeath()
-print("✅ Body Fly Menu загружен! Голова остаётся на месте.")
-print("   Используй кнопку в меню для включения/выключения.")
+print("✅ Only Right Arm Fly загружен!")
+print("   Используй меню для включения/выключения.")
 
--- Чтобы полностью удалить меню: ScreenGui:Destroy()
+-- Для удаления меню: ScreenGui:Destroy()
